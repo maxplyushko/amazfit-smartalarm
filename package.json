@@ -1,0 +1,6 @@
+{
+  "name": "smart-alarm",
+  "version": "1.0.0",
+  "description": "Smart alarm that wakes you during light sleep",
+  "zeppos": true
+}
