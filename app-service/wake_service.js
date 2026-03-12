@@ -1,70 +1,49 @@
-import { Sleep } from '@zos/sensor'
+import { set } from '@zos/alarm'
 import { notify } from '@zos/notification'
+import { evaluateWake } from '../utils/sleep-evaluator'
+import { isAlreadyWoken } from '../utils/storage'
+
+function triggerWake(progress) {
+  const urgency = Math.round(Math.min(progress, 1) * 100)
+  const param = JSON.stringify({ url: 'page/wake/index', urgency: String(urgency) })
+
+  const id = set({
+    url: 'page/wake/index',
+    delay: 1,
+    param: param,
+    store: false
+  })
+
+  if (id > 0) return
+
+  notify({
+    title: 'Smart Alarm',
+    content: 'Time to wake up!',
+    vibrate: 5,
+    actions: [
+      {
+        text: 'Wake Up',
+        file: 'page/wake/index',
+        param: String(urgency)
+      }
+    ]
+  })
+}
 
 AppService({
   onInit(params) {
     if (!params) return
 
-    const [isLastStr] = String(params).split(':')
-    const isLast = isLastStr === '1'
+    const parts = String(params).split(':')
+    const progress = Number.parseFloat(parts[0]) || 0
+    const isLast = parts[1] === '1'
 
-    let shouldWake = false
+    if (isAlreadyWoken()) return
 
-    try {
-      const sleep = new Sleep()
-      sleep.updateInfo()
+    const result = evaluateWake(progress, isLast)
 
-      const stageConstants = sleep.getStageConstantObj()
-      const stages = sleep.getStage()
-
-      const now = new Date()
-      const currentMinutes = now.getHours() * 60 + now.getMinutes()
-
-      if (!stages || stages.length === 0) {
-        shouldWake = isLast
-      } else {
-        let currentStage = stageConstants.DEEP_STAGE
-        for (const s of stages) {
-          if (currentMinutes >= s.start && currentMinutes < s.stop) {
-            currentStage = s.model
-            break
-          }
-        }
-
-        const isLightOrWake =
-          currentStage === stageConstants.LIGHT_STAGE || currentStage === stageConstants.WAKE_STAGE
-        shouldWake = isLightOrWake || isLast
-      }
-
-      if (shouldWake) {
-        notify({
-          title: 'Smart Alarm',
-          content: 'Time to wake up!',
-          vibrate: 5,
-          actions: [
-            {
-              text: 'Wake Up',
-              file: 'page/wake/index',
-              param: ''
-            }
-          ]
-        })
-      }
-    } catch (e) {
-      if (isLast) {
-        notify({
-          title: 'Smart Alarm',
-          content: 'Time to wake up!',
-          vibrate: 5,
-          actions: [
-            {
-              text: 'Wake Up',
-              file: 'page/wake/index',
-              param: ''
-            }
-          ]
-        })
-      }
+    if (result.shouldWake) {
+      triggerWake(progress)
     }
   }
 })

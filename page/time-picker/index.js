@@ -20,8 +20,8 @@ Page({
   },
 
   build() {
-    const hours = new Array(24).fill(0).map((_, i) => i)
-    const minutes = new Array(12).fill(0).map((_, i) => i * 5)
+    const hours = new Array(24).fill(0).map((_, i) => String(i).padStart(2, '0'))
+    const minutes = new Array(12).fill(0).map((_, i) => String(i * 5).padStart(2, '0'))
 
     createWidget(widget.WIDGET_PICKER, {
       title: 'Alarm Time',
@@ -41,7 +41,7 @@ Page({
         },
         {
           data_array: minutes,
-          init_val_index: minutes.indexOf(selectedMinute),
+          init_val_index: minutes.indexOf(String(selectedMinute).padStart(2, '0')),
           support_loop: true,
           unit: 'm',
           font_size: 24,
@@ -52,9 +52,9 @@ Page({
       ],
       picker_cb: function (picker, eventType, colIndex, selIndex) {
         if (colIndex === 0) {
-          selectedHour = hours[selIndex]
+          selectedHour = Number.parseInt(hours[selIndex], 10)
         } else if (colIndex === 1) {
-          selectedMinute = minutes[selIndex]
+          selectedMinute = Number.parseInt(minutes[selIndex], 10)
         }
         persistTime()
       }

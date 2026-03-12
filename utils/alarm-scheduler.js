@@ -1,8 +1,8 @@
 import { set, cancel, getAllAlarms, REPEAT_DAY } from '@zos/alarm'
-import { loadConfig } from './storage'
+import { loadConfig, clearWokenFlag } from './storage'
 
 const WAKE_SERVICE_PATH = 'app-service/wake_service'
-const CHECKPOINT_INTERVAL_MINUTES = 5
+const CHECKPOINT_INTERVAL_MINUTES = 2
 
 function getTomorrowDate(hour, minute) {
   const now = new Date()
@@ -28,13 +28,13 @@ export function scheduleAlarms(config) {
   const windowStart = new Date(targetTime)
   windowStart.setMinutes(windowStart.getMinutes() - wakeWindowMinutes)
 
+  const windowDurationMs = wakeWindowMinutes * 60 * 1000
   const alarmIds = []
   let checkpoint = new Date(windowStart)
 
   while (checkpoint <= targetTime) {
-    const checkpointIndex = Math.floor(
-      (checkpoint - windowStart) / (CHECKPOINT_INTERVAL_MINUTES * 60 * 1000)
-    )
+    const elapsedMs = checkpoint - windowStart
+    const progress = windowDurationMs > 0 ? Math.min(elapsedMs / windowDurationMs, 1) : 1
     const isLast = checkpoint.getTime() >= targetTime.getTime()
 
     const nextDate = getTomorrowDate(checkpoint.getHours(), checkpoint.getMinutes())
@@ -43,7 +43,7 @@ export function scheduleAlarms(config) {
     const id = set({
       url: WAKE_SERVICE_PATH,
       time: timeUTC,
-      param: `${checkpointIndex}:${isLast ? '1' : '0'}`,
+      param: `${progress.toFixed(2)}:${isLast ? '1' : '0'}`,
       store: true,
       repeat_type: REPEAT_DAY
     })
@@ -71,6 +71,7 @@ export function cancelAllAlarms() {
 
 export function applyAlarmConfig() {
   cancelAllAlarms()
+  clearWokenFlag()
   const config = loadConfig()
   return scheduleAlarms(config)
 }

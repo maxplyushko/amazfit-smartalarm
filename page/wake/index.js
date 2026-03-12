@@ -1,16 +1,37 @@
 import { createWidget, widget, align, text_style } from '@zos/ui'
 import { Vibrator, VIBRATOR_SCENE_NOTIFICATION } from '@zos/sensor'
 import { back } from '@zos/router'
+import { setPageBrightTime } from '@zos/display'
+import { markWoken } from '../../utils/storage'
 
 const W = 466
+
+function getVibrationPattern(urgency) {
+  if (urgency < 40) return { onMs: 200, offMs: 3000 }
+  if (urgency < 70) return { onMs: 400, offMs: 2000 }
+  if (urgency < 90) return { onMs: 600, offMs: 1200 }
+  return { onMs: 800, offMs: 800 }
+}
 
 Page({
   state: {
     vibrator: null,
-    vibInterval: null
+    vibInterval: null,
+    urgency: 50,
+    escalationTimer: null
+  },
+
+  onInit(param) {
+    const parsed = Number.parseInt(param, 10)
+    if (!Number.isNaN(parsed)) {
+      this.state.urgency = Math.max(0, Math.min(parsed, 100))
+    }
   },
 
   build() {
+    markWoken()
+    setPageBrightTime({ brightTime: 120000 })
+
     createWidget(widget.TEXT, {
       x: 0,
       y: 140,
@@ -52,17 +73,31 @@ Page({
     })
 
     this._startVibrationLoop()
+    this._startEscalation()
   },
 
   _startVibrationLoop() {
     this.state.vibrator = new Vibrator()
-
     this.state.vibrator.setMode(VIBRATOR_SCENE_NOTIFICATION)
-    this.state.vibrator.start()
+    this._applyPattern()
+  },
 
+  _applyPattern() {
+    this._clearInterval()
+    const { offMs } = getVibrationPattern(this.state.urgency)
+    this.state.vibrator.start()
     this.state.vibInterval = setInterval(() => {
       this.state.vibrator.start()
-    }, 1500)
+    }, offMs)
+  },
+
+  _startEscalation() {
+    this.state.escalationTimer = setInterval(() => {
+      if (this.state.urgency < 100) {
+        this.state.urgency = Math.min(this.state.urgency + 10, 100)
+        this._applyPattern()
+      }
+    }, 15000)
   },
 
   _dismiss() {
@@ -70,10 +105,18 @@ Page({
     back()
   },
 
-  _stopVibration() {
+  _clearInterval() {
     if (this.state.vibInterval) {
       clearInterval(this.state.vibInterval)
       this.state.vibInterval = null
+    }
+  },
+
+  _stopVibration() {
+    this._clearInterval()
+    if (this.state.escalationTimer) {
+      clearInterval(this.state.escalationTimer)
+      this.state.escalationTimer = null
     }
     if (this.state.vibrator) {
       this.state.vibrator.stop()

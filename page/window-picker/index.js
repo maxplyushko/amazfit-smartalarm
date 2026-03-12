@@ -2,7 +2,7 @@ import { createWidget, widget } from '@zos/ui'
 import { loadConfig, saveConfig } from '../../utils/storage'
 import { addPickerConfirm } from '../../utils/picker-confirm'
 
-const WINDOW_OPTIONS = [5, 10, 15, 20, 25, 30]
+const WINDOW_OPTIONS = [5, 10, 15, 20, 25, 30, 35, 40, 45]
 
 let selectedWindow = 30
 
