@@ -2,6 +2,7 @@ import { set } from '@zos/alarm'
 import { notify } from '@zos/notification'
 import { evaluateWake } from '../utils/sleep-evaluator'
 import { isAlreadyWoken } from '../utils/storage'
+import { applyAlarmConfig } from '../utils/alarm-scheduler'
 
 function triggerWake(progress) {
   const urgency = Math.round(Math.min(progress, 1) * 100)
@@ -44,6 +45,7 @@ AppService({
 
     if (result.shouldWake) {
       triggerWake(progress)
+      applyAlarmConfig()
     }
   }
 })

@@ -6,7 +6,7 @@
     "appType": "app",
     "version": {
       "code": 1,
-      "name": "2.2.1"
+      "name": "3.0.0"
     },
     "icon": "icon.png",
     "vender": "Max Restinov",
@@ -15,7 +15,8 @@
   "permissions": [
     "device:os.alarm",
     "device:os.notification",
-    "data:user.hd.sleep"
+    "data:user.hd.sleep",
+    "data:user.hd.heart_rate"
   ],
   "runtime": {
     "apiVersion": {
