@@ -44,8 +44,8 @@ AppService({
     const result = evaluateWake(progress, isLast)
 
     if (result.shouldWake) {
-      triggerWake(progress)
       applyAlarmConfig()
+      triggerWake(progress)
     }
   }
 })
