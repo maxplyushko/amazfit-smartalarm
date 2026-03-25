@@ -4,9 +4,11 @@ import { evaluateWake } from '../utils/sleep-evaluator'
 import { isAlreadyWoken } from '../utils/storage'
 import { applyAlarmConfig } from '../utils/alarm-scheduler'
 
-function triggerWake(progress) {
+function triggerWake(progress, context) {
   const urgency = Math.round(Math.min(progress, 1) * 100)
-  const param = JSON.stringify({ url: 'page/wake/index', urgency: String(urgency) })
+  const payload = { url: 'page/wake/index', urgency: String(urgency) }
+  if (context) payload.context = context
+  const param = JSON.stringify(payload)
 
   const id = set({
     url: 'page/wake/index',
@@ -25,7 +27,7 @@ function triggerWake(progress) {
       {
         text: 'Wake Up',
         file: 'page/wake/index',
-        param: String(urgency)
+        param: param
       }
     ]
   })
@@ -45,7 +47,7 @@ AppService({
 
     if (result.shouldWake) {
       applyAlarmConfig()
-      triggerWake(progress)
+      triggerWake(progress, result.context)
     }
   }
 })

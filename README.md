@@ -20,21 +20,21 @@ A Zepp OS Mini Program that wakes you during light sleep for a fresher morning. 
 
 ### Smart Wake Algorithm
 
-The app evaluates whether to wake you every 2 minutes during the wake window. The decision uses multiple signals:
+The app evaluates whether to wake you every minute during the wake window. The decision uses multiple signals:
 
 - **Sleep stage detection** — reads current sleep stage (light, deep, REM, wake) from the Zepp OS Sleep sensor
 - **Heart rate trend** — analyzes the last 10 minutes of HR data to detect rising (lightening sleep) or falling (deepening sleep) patterns
 - **Sleep stage trend** — tracks whether recent stages are trending lighter or deeper
 - **Stage transition detection** — applies a bonus when you naturally transition from REM/deep into light sleep, the ideal wake moment
 - **Time-in-stage stability** — waits for light sleep to be stable (3+ minutes) before triggering, avoiding premature wakes from brief stage classifications
-- **Micro-wake filtering** — ignores brief awakenings (< 2 min) that are normal during sleep
+- **Micro-wake filtering** — ignores brief awakenings (under about one minute in the wake stage) that are normal during sleep
 
 The algorithm uses a progressive threshold strategy that relaxes over time:
 
 | Window progress | Allowed wake stages |
 |----------------|-------------------|
-| 0–20% | Only if already awake |
-| 20–55% | Adds light sleep |
+| 0–10% | Only if already awake (default; adaptive feedback may shift this band) |
+| 10–55% | Adds light sleep |
 | 55–70% | Adds REM |
 | 70–90% | Anything except deep sleep |
 | 90–100% | Wake regardless (deadline) |
@@ -80,6 +80,7 @@ amazfit-smartalarm/
 ├── page/time-picker/           # Time picker (WIDGET_PICKER)
 ├── page/window-picker/         # Wake window picker (5–45 min)
 ├── page/wake/                  # Wake-up screen with vibration
+├── page/wake-feedback/         # "How do you feel?" rating (Great/Okay/Groggy)
 ├── app-service/
 │   ├── wake_service.js         # Alarm handler, evaluates and triggers wake
 │   └── dismiss_service.js      # Clears wake state
@@ -87,6 +88,7 @@ amazfit-smartalarm/
 │   ├── storage.js              # Config and wake-state persistence
 │   ├── alarm-scheduler.js      # Checkpoint alarms via @zos/alarm
 │   ├── sleep-evaluator.js      # Multi-signal wake strategy
+│   └── wake-feedback.js        # Feedback storage and threshold adjustment
 │   └── picker-confirm.js       # Reusable confirm button
 └── assets/gtr-4/               # Icons (icon.png, confirm.png)
 ```
@@ -98,17 +100,11 @@ amazfit-smartalarm/
 - `data:user.hd.sleep` – Read sleep stage data from Zepp OS
 - `data:user.hd.heart_rate` – Read heart rate data for trend detection
 
+## User-Adaptive Wake Learning
+
+After dismissing the alarm, a "How do you feel?" prompt (Great / Okay / Groggy) collects wake quality feedback. Wake context (sleep stage, progress, HR trend, reason) is logged alongside each rating. The algorithm adapts over time: if you consistently feel groggy when woken from REM, the REM threshold is raised; if light sleep wakes feel great, the light sleep threshold is lowered. Adjustments are bounded (+/- 0.10 from defaults), require at least 5 rated entries per wake condition, and history is capped at 30 entries.
+
 ## Future Enhancements
-
-### User-Adaptive Wake Learning
-
-A feedback loop to personalize wake thresholds per user over time:
-
-- After dismissing the alarm, a "How do you feel?" prompt (Great / Okay / Groggy) collects wake quality feedback
-- Wake context (sleep stage, progress, HR trend, reason) is logged alongside each rating
-- A threshold adjustment algorithm analyzes the history: if a user consistently feels groggy when woken from REM, the REM threshold is raised for that individual; if light sleep wakes consistently feel great, the light sleep threshold is lowered
-- Adjustments are bounded (+/- 0.10 from defaults) to prevent wild swings, with a minimum of 5 rated entries per wake condition before any adjustment applies
-- Rolling 30-entry history cap keeps storage minimal
 
 ### Centered Wake Window
 

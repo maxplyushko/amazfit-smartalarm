@@ -6,7 +6,7 @@
     "appType": "app",
     "version": {
       "code": 1,
-      "name": "3.0.1"
+      "name": "3.1.2"
     },
     "icon": "icon.png",
     "vender": "Max Restinov",
@@ -33,6 +33,7 @@
           "pages": [
             "page/config/index",
             "page/wake/index",
+            "page/wake-feedback/index",
             "page/time-picker/index",
             "page/window-picker/index"
           ]

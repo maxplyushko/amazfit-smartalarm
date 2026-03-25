@@ -2,7 +2,7 @@ import { set, cancel, getAllAlarms, REPEAT_DAY } from '@zos/alarm'
 import { loadConfig, clearWokenFlag } from './storage'
 
 const WAKE_SERVICE_PATH = 'app-service/wake_service'
-const CHECKPOINT_INTERVAL_MINUTES = 2
+const CHECKPOINT_INTERVAL_MINUTES = 1
 
 function getTomorrowDate(hour, minute) {
   const now = new Date()

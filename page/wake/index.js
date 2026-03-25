@@ -1,6 +1,6 @@
 import { createWidget, widget, align, text_style } from '@zos/ui'
 import { Vibrator, VIBRATOR_SCENE_NOTIFICATION } from '@zos/sensor'
-import { back } from '@zos/router'
+import { back, replace } from '@zos/router'
 import { setPageBrightTime } from '@zos/display'
 import { markWoken } from '../../utils/storage'
 
@@ -18,14 +18,29 @@ Page({
     vibrator: null,
     vibInterval: null,
     urgency: 50,
-    escalationTimer: null
+    escalationTimer: null,
+    context: null,
+    showingFeedback: false
   },
 
   onInit(param) {
-    const parsed = Number.parseInt(param, 10)
-    if (!Number.isNaN(parsed)) {
-      this.state.urgency = Math.max(0, Math.min(parsed, 100))
+    let urgency = 50
+    let context = null
+    if (typeof param === 'string' && param.length > 0) {
+      try {
+        const parsed = JSON.parse(param)
+        urgency = Number(parsed.urgency)
+        context = parsed.context || null
+      } catch (e) {
+        const n = Number.parseInt(param, 10)
+        if (!Number.isNaN(n)) urgency = n
+      }
+    } else if (param && typeof param === 'object') {
+      urgency = Number(param.urgency)
+      context = param.context || null
     }
+    this.state.urgency = Math.max(0, Math.min(urgency || 50, 100))
+    this.state.context = context
   },
 
   build() {
@@ -102,7 +117,12 @@ Page({
 
   _dismiss() {
     this._stopVibration()
-    back()
+    const ctx = this.state.context
+    if (ctx) {
+      replace({ url: 'page/wake-feedback/index', params: JSON.stringify(ctx) })
+    } else {
+      back()
+    }
   },
 
   _clearInterval() {

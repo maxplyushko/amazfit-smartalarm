@@ -1,23 +1,20 @@
 import { Sleep, HeartRate } from '@zos/sensor'
+import { getThresholdOverrides } from './wake-feedback'
 
 /**
  * Progressive wake strategy thresholds.
  * As window progress increases, more sleep stages become acceptable for waking.
  *
- * 0.00-0.20  Earliest     — only WAKE (already awake)
- * 0.20-0.55  Conservative — adds LIGHT
+ * 0.00-light_min  Earliest     — only WAKE (already awake); default light_min 0.10
+ * light_min-0.55  Conservative — adds LIGHT
  * 0.55-0.70  Normal       — adds REM
  * 0.70-0.90  Aggressive   — anything except DEEP
  * 0.90-1.00  Forced       — wake regardless
  */
-const PHASE_LIGHT_MIN = 0.2
-const PHASE_CONSERVATIVE = 0.55
-const PHASE_NORMAL = 0.7
-const PHASE_AGGRESSIVE = 0.9
 
 const TRANSITION_BONUS = 0.08
 const MIN_TIME_IN_STAGE = 3
-const MIN_WAKE_DURATION = 2
+const MIN_WAKE_DURATION = 1
 
 function getCurrentMinutes() {
   const now = new Date()
@@ -125,10 +122,27 @@ function detectHRTrend() {
   }
 }
 
+function stageName(constants, model) {
+  if (!constants || model == null) return null
+  if (model === constants.WAKE_STAGE) return 'wake'
+  if (model === constants.LIGHT_STAGE) return 'light'
+  if (model === constants.REM_STAGE) return 'rem'
+  if (model === constants.DEEP_STAGE) return 'deep'
+  return 'unknown'
+}
+
 export function evaluateWake(progress, isLast) {
-  if (isLast || progress >= 1) return { shouldWake: true, reason: 'deadline' }
+  if (isLast || progress >= 1) {
+    return { shouldWake: true, reason: 'deadline', context: { stage: null, progress, hrTrend: 0, reason: 'deadline' } }
+  }
 
   try {
+    const overrides = getThresholdOverrides()
+    const PHASE_LIGHT_MIN = overrides.light_min
+    const PHASE_CONSERVATIVE = overrides.conservative
+    const PHASE_NORMAL = overrides.normal
+    const PHASE_AGGRESSIVE = overrides.aggressive
+
     const sleep = new Sleep()
     sleep.updateInfo()
 
@@ -137,14 +151,26 @@ export function evaluateWake(progress, isLast) {
     const currentMinutes = getCurrentMinutes()
 
     if (!stages || stages.length === 0) {
-      if (progress >= PHASE_AGGRESSIVE) return { shouldWake: true, reason: 'no_data_late_window' }
+      if (progress >= PHASE_AGGRESSIVE) {
+        return {
+          shouldWake: true,
+          reason: 'no_data_late_window',
+          context: { stage: null, progress, hrTrend: 0, reason: 'no_data_late_window' }
+        }
+      }
       return { shouldWake: false, reason: 'no_data' }
     }
 
     const resolved = findCurrentStage(stages, currentMinutes)
 
     if (!resolved) {
-      if (progress >= PHASE_NORMAL) return { shouldWake: true, reason: 'gap_stage_mid_window' }
+      if (progress >= PHASE_NORMAL) {
+        return {
+          shouldWake: true,
+          reason: 'gap_stage_mid_window',
+          context: { stage: null, progress, hrTrend: 0, reason: 'gap_stage_mid_window' }
+        }
+      }
       return { shouldWake: false, reason: 'gap_stage_early' }
     }
 
@@ -165,31 +191,45 @@ export function evaluateWake(progress, isLast) {
     const minutesInStage = currentMinutes - resolved.start
     const adjustedMinutesInStage = minutesInStage < 0 ? minutesInStage + 1440 : minutesInStage
 
+    const ctx = { stage: stageName(constants, stage), progress, hrTrend, reason: '' }
+
     if (isWake && (adjustedMinutesInStage >= MIN_WAKE_DURATION || effectiveProgress >= 0.10)) {
-      return { shouldWake: true, reason: 'awake' }
+      ctx.reason = 'awake'
+      return { shouldWake: true, reason: 'awake', context: ctx }
     }
 
     const stableLightSleep = adjustedMinutesInStage >= MIN_TIME_IN_STAGE
 
     if (isLight && effectiveProgress >= PHASE_LIGHT_MIN && stableLightSleep) {
-      return { shouldWake: true, reason: 'light_sleep' }
+      ctx.reason = 'light_sleep'
+      return { shouldWake: true, reason: 'light_sleep', context: ctx }
     }
 
     if (isREM && effectiveProgress >= PHASE_CONSERVATIVE) {
-      return { shouldWake: true, reason: 'rem_acceptable' }
+      ctx.reason = 'rem_acceptable'
+      return { shouldWake: true, reason: 'rem_acceptable', context: ctx }
     }
 
     if (!isDeep && effectiveProgress >= PHASE_NORMAL) {
-      return { shouldWake: true, reason: 'non_deep_normal_phase' }
+      ctx.reason = 'non_deep_normal_phase'
+      return { shouldWake: true, reason: 'non_deep_normal_phase', context: ctx }
     }
 
     if (isDeep && effectiveProgress >= PHASE_AGGRESSIVE) {
-      return { shouldWake: true, reason: 'deep_but_urgent' }
+      ctx.reason = 'deep_but_urgent'
+      return { shouldWake: true, reason: 'deep_but_urgent', context: ctx }
     }
 
     return { shouldWake: false, reason: 'waiting_for_lighter_stage' }
   } catch (e) {
-    if (progress >= PHASE_AGGRESSIVE) return { shouldWake: true, reason: 'error_late_window' }
+    const overrides = getThresholdOverrides()
+    if (progress >= overrides.aggressive) {
+      return {
+        shouldWake: true,
+        reason: 'error_late_window',
+        context: { stage: null, progress, hrTrend: 0, reason: 'error_late_window' }
+      }
+    }
     return { shouldWake: false, reason: 'error' }
   }
 }
