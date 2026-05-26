@@ -1,17 +1,10 @@
 import { Sleep, HeartRate } from '@zos/sensor'
+import { log } from '@zos/utils'
 import { getThresholdOverrides } from './wake-feedback'
 
-/**
- * Progressive wake strategy thresholds.
- * As window progress increases, more sleep stages become acceptable for waking.
- *
- * 0.00-light_min  Earliest     — only WAKE (already awake); default light_min 0.10
- * light_min-0.55  Conservative — adds LIGHT
- * 0.55-0.70  Normal       — adds REM
- * 0.70-0.90  Aggressive   — anything except DEEP
- * 0.90-1.00  Forced       — wake regardless
- */
+const logger = log.getLogger('sleep-eval')
 
+// Thresholds relax as window progress increases (see wake-feedback.js for adaptive overrides)
 const TRANSITION_BONUS = 0.08
 const MIN_TIME_IN_STAGE = 3
 const MIN_WAKE_DURATION = 1
@@ -118,6 +111,7 @@ function detectHRTrend() {
     if (delta < -HR_FLAT_THRESHOLD) return -1
     return 0
   } catch (e) {
+    logger.error('detectHRTrend failed', e)
     return 0
   }
 }
@@ -222,6 +216,7 @@ export function evaluateWake(progress, isLast) {
 
     return { shouldWake: false, reason: 'waiting_for_lighter_stage' }
   } catch (e) {
+    logger.error('evaluateWake failed', e)
     const overrides = getThresholdOverrides()
     if (progress >= overrides.aggressive) {
       return {

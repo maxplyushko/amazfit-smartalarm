@@ -1,4 +1,7 @@
 import { readFileSync, writeFileSync } from '@zos/fs'
+import { log } from '@zos/utils'
+
+const logger = log.getLogger('wake-feedback')
 
 const FEEDBACK_PATH = 'wake_feedback.json'
 const MAX_ENTRIES = 30
@@ -10,6 +13,12 @@ const DEFAULT_THRESHOLDS = {
   conservative: 0.55,
   normal: 0.7,
   aggressive: 0.9
+}
+
+function ratingScore(r) {
+  if (r === 'great') return 1
+  if (r === 'okay') return 0
+  return -1
 }
 
 const REASON_TO_THRESHOLD = {
@@ -29,7 +38,7 @@ export function saveFeedback(entry) {
       const raw = readFileSync({ path: FEEDBACK_PATH, options: { encoding: 'utf8' } })
       data = JSON.parse(raw)
     } catch (e) {
-      // start fresh
+      logger.error('failed to read feedback file', e)
     }
     data.entries = data.entries || []
     data.entries.push({ ...entry, timestamp: Date.now() })
@@ -42,7 +51,7 @@ export function saveFeedback(entry) {
       options: { encoding: 'utf8' }
     })
   } catch (e) {
-    // ignore
+    logger.error('saveFeedback failed', e)
   }
 }
 
@@ -58,9 +67,8 @@ export function getThresholdOverrides() {
       const forReason = entries.filter((e) => e.reason === reason && e.rating != null)
       if (forReason.length < MIN_ENTRIES_FOR_ADJUSTMENT) continue
 
-      const avg =
-        forReason.reduce((sum, e) => sum + (e.rating === 'great' ? 1 : e.rating === 'okay' ? 0 : -1), 0) /
-        forReason.length
+      const total = forReason.reduce((sum, e) => sum + ratingScore(e.rating), 0)
+      const avg = total / forReason.length
 
       const base = DEFAULT_THRESHOLDS[key]
       if (avg < -0.3) {
@@ -72,6 +80,7 @@ export function getThresholdOverrides() {
 
     return overrides
   } catch (e) {
+    logger.error('getThresholdOverrides failed', e)
     return { ...DEFAULT_THRESHOLDS }
   }
 }

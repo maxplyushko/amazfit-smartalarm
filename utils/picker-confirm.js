@@ -12,7 +12,7 @@ export function addPickerConfirm(onConfirm) {
     color: 0x222222, radius: 0
   })
 
-  var highlight = createWidget(widget.CIRCLE, {
+  const highlight = createWidget(widget.CIRCLE, {
     center_x: W / 2,
     center_y: BTN_Y + BTN_SIZE / 2,
     radius: HIGHLIGHT_SIZE / 2,
@@ -29,7 +29,7 @@ export function addPickerConfirm(onConfirm) {
     auto_scale: true
   })
 
-  var tap = createWidget(widget.IMG, {
+  const tap = createWidget(widget.IMG, {
     x: 0, y: BTN_Y - 4, w: W, h: W - BTN_Y + 4
   })
   tap.addEventListener(event.CLICK_DOWN, function () {

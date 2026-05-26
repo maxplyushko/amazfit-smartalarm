@@ -1,4 +1,7 @@
 import { readFileSync, writeFileSync } from '@zos/fs'
+import { log } from '@zos/utils'
+
+const logger = log.getLogger('storage')
 
 const CONFIG_PATH = 'config.json'
 const WAKE_STATE_PATH = 'wake_state.json'
@@ -60,6 +63,6 @@ export function clearWokenFlag() {
       options: { encoding: 'utf8' }
     })
   } catch (e) {
-    // ignore
+    logger.error('clearWokenFlag failed', e)
   }
 }

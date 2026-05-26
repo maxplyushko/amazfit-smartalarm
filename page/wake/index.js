@@ -19,8 +19,7 @@ Page({
     vibInterval: null,
     urgency: 50,
     escalationTimer: null,
-    context: null,
-    showingFeedback: false
+    context: null
   },
 
   onInit(param) {
